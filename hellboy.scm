@@ -1,19 +1,19 @@
 (define-module (hellboy)
-  #:use-module (srfi srfi-1)
-  #:use-module (guix channels)
-  #:use-module (guix inferior)
-  #:use-module (gnu)
-  #:use-module (gnu system setuid)
-  #:use-module (gnu services pm)
-  #:use-module (gnu services dbus)
-  #:use-module (ph disks)
-  #:use-module (gnu services nix)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages networking)
   #:use-module (gnu packages shells)
   #:use-module (gnu packages wm)
-  #:use-module (gnu packages networking)
-  #:use-module (gnu packages linux)
+  #:use-module (gnu services dbus)
+  #:use-module (gnu services nix)
+  #:use-module (gnu services pm)
+  #:use-module (gnu system setuid)
+  #:use-module (gnu)
+  #:use-module (guix channels)
+  #:use-module (guix inferior)
   #:use-module (nongnu packages linux)
-  #:use-module (nongnu system linux-initrd))
+  #:use-module (nongnu system linux-initrd)
+  ;; #:use-module (ph disks)
+  #:use-module (srfi srfi-1))
 
 (use-service-modules
  docker
@@ -29,18 +29,34 @@
 
 (use-package-modules cups)
 
+(okph "ph!")
+
+(define-public (btrfs-maintenance-jobs mount-point)
+  (list
+   #~(job '(next-hour '(3))
+	  (string-append #$btrfs-progs "/bin/btrfs "
+			 "scrub " "start " "-c " "idle "
+			 #$mount-point))
+   #~(job '(next-hour '(5))
+	  (string-append #$btrfs-progs "/bin/btrfs "
+			 "balance " "start "
+			 "-dusage=50,limit=3 "
+			 "-musage=50,limit=1 "
+			 #$mount-point))))
 
 (define %my-desktop-services
   (modify-services %desktop-services
     (delete gdm-service-type)
-    (guix-service-type config =>
-                       (guix-configuration (inherit config)
-                                           (discover? #t)
-                                           (substitute-urls
-                                            (append (list "https://substitutes.nonguix.org") %default-substitute-urls))
-                                           (authorized-keys
-                                            (append (list (local-file "signing-key-nonguix.pub")
-                                                          (local-file "babayaga.pub")) %default-authorized-guix-keys))))))
+    ;; (guix-service-type config =>
+    ;;                    (guix-configuration (inherit config)
+    ;;                                        (discover? #t)
+    ;;                                        (substitute-urls
+    ;;                                         (append (list "https://substitutes.nonguix.org") %default-substitute-urls))
+    ;;                                        (authorized-keys
+    ;;                                         (append (list (local-file "signing-key-nonguix.pub")
+    ;;                                                       (local-file "babayaga.pub")) %default-authorized-guix-keys))))
+    )
+  )
 
 (operating-system
   (kernel linux)
@@ -76,7 +92,6 @@
                     )))
 		%base-user-accounts))
 
-  ;; for packages xand 'guix install PACKAGE' to install a package.
   (packages (append (list
                      (specification->package "openssh")
                      (specification->package "nss-certs")
